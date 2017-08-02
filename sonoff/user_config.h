@@ -39,13 +39,13 @@
 #define WIFI_SUBNETMASK        "255.255.255.0"   // [IpAddress3] If not using DHCP set Network mask
 #define WIFI_DNS               "192.168.2.27"    // [IpAddress4] If not using DHCP set DNS IP address (might be equal to WIFI_GATEWAY)
 
-#define STA_SSID1              "indebuurt1"      // [Ssid1] Wifi SSID
-#define STA_PASS1              "VnsqrtnrsddbrN"  // [Password1] Wifi password
+#define STA_SSID1              "CZ2"      // [Ssid1] Wifi SSID
+#define STA_PASS1              "c18601605697z"  // [Password1] Wifi password
 #define STA_SSID2              "indebuurt2"      // [Ssid2] Optional alternate AP Wifi SSID
 #define STA_PASS2              "VnsqrtnrsddbrN"  // [Password2] Optional alternate AP Wifi password
-#define WIFI_CONFIG_TOOL       WIFI_WPSCONFIG    // [WifiConfig] Default tool if wifi fails to connect
+#define WIFI_CONFIG_TOOL       WIFI_SMARTCONFIG    // [WifiConfig] Default tool if wifi fails to connect
                                                  //   (WIFI_RESTART, WIFI_SMARTCONFIG, WIFI_MANAGER, WIFI_WPSCONFIG, WIFI_RETRY)
-                                                 
+
 // -- Syslog --------------------------------------
 #define SYS_LOG_HOST           "domus1"          // [LogHost] (Linux) syslog host
 #define SYS_LOG_PORT           514               // [LogPort] default syslog UDP port
@@ -68,10 +68,10 @@
   #define MQTT_USER            "cloudmqttuser"      // [MqttUser] Mandatory user
   #define MQTT_PASS            "cloudmqttpassword"  // [MqttPassword] Mandatory password
 #else
-  #define MQTT_HOST            "domus1"          // [MqttHost]
+  #define MQTT_HOST            "pi.k2"          // [MqttHost]
   #define MQTT_PORT            1883              // [MqttPort] MQTT port (10123 on CloudMQTT)
-  #define MQTT_USER            "DVES_USER"       // [MqttUser] Optional user
-  #define MQTT_PASS            "DVES_PASS"       // [MqttPassword] Optional password
+  #define MQTT_USER            "pi"       // [MqttUser] Optional user
+  #define MQTT_PASS            "hhhhhkkkkk"       // [MqttPassword] Optional password
 #endif
 
 #define MQTT_BUTTON_RETAIN     0                 // [ButtonRetain] Button may send retain flag (0 = off, 1 = on)
@@ -133,7 +133,7 @@
 #define TIME_STD               Last, Sun, Oct, 3, +60   // Last sunday in october 02:00 +60 minutes
 
 // -- Application ---------------------------------
-#define APP_TIMEZONE           1                 // [Timezone] +1 hour (Amsterdam) (-12 .. 12 = hours from UTC, 99 = use TIME_DST/TIME_STD)
+#define APP_TIMEZONE           8                 // [Timezone] +1 hour (Amsterdam) (-12 .. 12 = hours from UTC, 99 = use TIME_DST/TIME_STD)
 #define APP_LEDSTATE           LED_POWER         // [LedState] Function of led (LED_OFF, LED_POWER, LED_MQTTSUB, LED_POWER_MQTTSUB, LED_MQTTPUB, LED_POWER_MQTTPUB, LED_MQTT, LED_POWER_MQTT)
 #define APP_PULSETIME          0                 // [PulseTime] Time in 0.1 Sec to turn off power for relay 1 (0 = disabled)
 #define APP_POWERON_STATE      3                 // [PowerOnState] Power On Relay state (0 = Off, 1 = On, 2 = Toggle Saved state, 3 = Saved state)
@@ -156,23 +156,23 @@
 
 //#define USE_DS18x20                              // Optional using OneWire library for multiple DS18B20 and/or DS18S20 (+2k code)
 
-#define USE_I2C                                  // I2C using library wire (+10k code, 0.2k mem) - Disable by //
-  #define USE_BH1750                             // Add I2C code for BH1750 sensor
-  #define USE_BMP                                // Add I2C code for BMP/BME280 sensor
-  #define USE_HTU                                // Add I2C code for HTU21/SI7013/SI7020/SI7021 sensor
-  #define USE_SHT                                // Add I2C emulating code for SHT1X sensor
+//#define USE_I2C                                  // I2C using library wire (+10k code, 0.2k mem) - Disable by //
+//  #define USE_BH1750                             // Add I2C code for BH1750 sensor
+//  #define USE_BMP                                // Add I2C code for BMP/BME280 sensor
+//  #define USE_HTU                                // Add I2C code for HTU21/SI7013/SI7020/SI7021 sensor
+//  #define USE_SHT                                // Add I2C emulating code for SHT1X sensor
 
-#define USE_IR_REMOTE                            // Send IR remote commands using library IRremoteESP8266 and ArduinoJson (+3k code, 0.3k mem)
+//#define USE_IR_REMOTE                            // Send IR remote commands using library IRremoteESP8266 and ArduinoJson (+3k code, 0.3k mem)
 //  #define USE_IR_HVAC                            // Support for HVAC system using IR (+2k code)
 
-#define USE_WS2812                               // WS2812 Led string using library NeoPixelBus (+11k code, +1k mem) - Disable by //
-  #define USE_WS2812_CTYPE     1                 // WS2812 Color type (0 - RGB, 1 - GRB)
+//#define USE_WS2812                               // WS2812 Led string using library NeoPixelBus (+11k code, +1k mem) - Disable by //
+//  #define USE_WS2812_CTYPE     1                 // WS2812 Color type (0 - RGB, 1 - GRB)
 //  #define USE_WS2812_DMA                         // DMA supports only GPIO03 (= Serial RXD) (+1k mem)
                                                  //   When USE_WS2812_DMA is enabled expect Exceptions on Pow
 
 /*********************************************************************************************\
  * Compile a minimal version if upgrade memory gets tight ONLY TO BE USED FOR UPGRADE STEP 1!
- *   To be used as step 1 during upgrade. 
+ *   To be used as step 1 during upgrade.
  *   Step 2 is re-compile with option BE_MINIMAL commented out.
  *   !!! Needed for next release of Arduino/ESP8266 (+22k code, +2k mem) !!!
 \*********************************************************************************************/
@@ -190,4 +190,3 @@
 #if (ARDUINO < 10610)
   #error "This software is supported with Arduino IDE starting from 1.6.10 and ESP8266 Release 2.3.0"
 #endif
-
