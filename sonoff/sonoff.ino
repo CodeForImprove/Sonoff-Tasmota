@@ -25,7 +25,7 @@
     - Select IDE Tools - Flash Size: "1M (no SPIFFS)"
   ====================================================*/
 
-#define VERSION                0x05050000  // 5.5.0
+#define VERSION                0x05050200  // 5.5.2
 
 enum log_t   {LOG_LEVEL_NONE, LOG_LEVEL_ERROR, LOG_LEVEL_INFO, LOG_LEVEL_DEBUG, LOG_LEVEL_DEBUG_MORE, LOG_LEVEL_ALL};
 enum week_t  {Last, First, Second, Third, Fourth};
@@ -119,7 +119,7 @@ enum emul_t  {EMUL_NONE, EMUL_WEMO, EMUL_HUE, EMUL_MAX};
 #define APP_POWER              0            // Default saved power state Off
 #define MAX_COUNTERS           4            // Max number of counter sensors
 #define MAX_PULSETIMERS        4            // Max number of supported pulse timers
-#define WS2812_MAX_LEDS        256          // Max number of LEDs
+#define WS2812_MAX_LEDS        512          // Max number of LEDs
 
 #define PWM_RANGE              1023         // 255..1023 needs to be devisible by 256
 //#define PWM_FREQ               1000         // 100..1000 Hz led refresh
@@ -163,7 +163,7 @@ enum opt_t   {P_HOLD_TIME, P_MAX_POWER_RETRY, P_MAX_PARAM8};   // Index in sysCf
 #endif
 #if (MQTT_MAX_PACKET_SIZE -TOPSZ -7) < MESSZ  // If the max message size is too small, throw an error at compile time
                                             // See pubsubclient.c line 359
-  #error "MQTT_MAX_PACKET_SIZE is too small in libraries/PubSubClient/src/PubSubClient.h, increase it to at least 467"
+  #error "MQTT_MAX_PACKET_SIZE is too small in libraries/PubSubClient/src/PubSubClient.h, increase it to at least 475"
 #endif
 
 #include <Ticker.h>                         // RTC, HLW8012, OSWatch
@@ -1129,6 +1129,12 @@ void mqttDataCb(char* topic, byte* data, unsigned int data_len)
       }
       snprintf_P(svalue, sizeof(svalue), PSTR("{\"PressRes\":%d}"), sysCfg.flag.pressure_resolution);
     }
+    else if (!strcmp_P(type,PSTR("VOLTRES"))) {
+      if ((payload >= 0) && (payload <= 1)) {
+        sysCfg.flag.voltage_resolution = payload;
+      }
+      snprintf_P(svalue, sizeof(svalue), PSTR("{\"VoltRes\":%d}"), sysCfg.flag.voltage_resolution);
+    }
     else if (!strcmp_P(type,PSTR("ENERGYRES"))) {
       if ((payload >= 0) && (payload <= 5)) {
         sysCfg.flag.energy_resolution = payload;
@@ -1275,14 +1281,6 @@ void mqttDataCb(char* topic, byte* data, unsigned int data_len)
         sleep = payload;
       }
       snprintf_P(svalue, sizeof(svalue), PSTR("{\"Sleep\":\"%d%s (%d%s)\"}"), sleep, (sysCfg.flag.value_units) ? " mS" : "", sysCfg.sleep, (sysCfg.flag.value_units) ? " mS" : "");
-    }
-    else if (!strcmp_P(type,PSTR("FLASHMODE"))) {  // 0 = QIO, 1 = QOUT, 2 = DIO, 3 = DOUT
-      if ((payload >= 0) && (payload <= 3)) {
-        if (ESP.getFlashChipMode() != payload) {
-          setFlashMode(0, payload &3);
-        }
-      }
-      snprintf_P(svalue, sizeof(svalue), PSTR("{\"FlashMode\":%d}"), ESP.getFlashChipMode());
     }
     else if (!strcmp_P(type,PSTR("UPGRADE")) || !strcmp_P(type,PSTR("UPLOAD"))) {
       // Check if the payload is numerically 1, and had no trailing chars.
@@ -1762,7 +1760,7 @@ void publish_status(uint8_t payload)
   }
 
   if ((0 == payload) || (3 == payload)) {
-    snprintf_P(svalue, sizeof(svalue), PSTR("{\"StatusLOG\":{\"Seriallog\":%d, \"Weblog\":%d, \"Syslog\":%d, \"LogHost\":\"%s\", \"SSId1\":\"%s\", \"SSId2\":\"%s\", \"TelePeriod\":%d, \"Option\":\"%X\"}}"),
+    snprintf_P(svalue, sizeof(svalue), PSTR("{\"StatusLOG\":{\"Seriallog\":%d, \"Weblog\":%d, \"Syslog\":%d, \"LogHost\":\"%s\", \"SSId1\":\"%s\", \"SSId2\":\"%s\", \"TelePeriod\":%d, \"Option\":\"%08X\"}}"),
       sysCfg.seriallog_level, sysCfg.weblog_level, sysCfg.syslog_level, sysCfg.syslog_host, sysCfg.sta_ssid[0], sysCfg.sta_ssid[1], sysCfg.tele_period, sysCfg.flag.data);
     mqtt_publish_topic_P(option, PSTR("STATUS3"), svalue);
   }
@@ -1774,7 +1772,7 @@ void publish_status(uint8_t payload)
   }
 
   if ((0 == payload) || (5 == payload)) {
-    snprintf_P(svalue, sizeof(svalue), PSTR("{\"StatusNET\":{\"Host\":\"%s\", \"IP\":\"%s\", \"Gateway\":\"%s\", \"Subnetmask\":\"%s\", \"DNSServer\":\"%s\", \"Mac\":\"%s\", \"Webserver\":%d, \"WifiConfig\":%d}}"),
+    snprintf_P(svalue, sizeof(svalue), PSTR("{\"StatusNET\":{\"Hostname\":\"%s\", \"IPaddress\":\"%s\", \"Gateway\":\"%s\", \"Subnetmask\":\"%s\", \"DNSServer\":\"%s\", \"Mac\":\"%s\", \"Webserver\":%d, \"WifiConfig\":%d}}"),
       Hostname, WiFi.localIP().toString().c_str(), IPAddress(sysCfg.ip_address[1]).toString().c_str(), IPAddress(sysCfg.ip_address[2]).toString().c_str(), IPAddress(sysCfg.ip_address[3]).toString().c_str(),
       WiFi.macAddress().c_str(), sysCfg.webserver, sysCfg.sta_config);
     mqtt_publish_topic_P(option, PSTR("STATUS5"), svalue);
@@ -1856,7 +1854,12 @@ void sensors_mqttPresent(char* svalue, uint16_t ssvalue, uint8_t* djson)
   counter_mqttPresent(svalue, ssvalue, djson);
 #ifndef USE_ADC_VCC
   if (pin[GPIO_ADC0] < 99) {
-    snprintf_P(svalue, ssvalue, PSTR("%s, \"AnalogInput0\":%d"), svalue, analogRead(A0));
+    uint16_t alr = 0;
+    for (byte i = 0; i < 32; i++) {
+      alr += analogRead(A0);
+      delay(1);
+    }
+    snprintf_P(svalue, ssvalue, PSTR("%s, \"AnalogInput0\":%d"), svalue, alr >> 5);
     *djson = 1;
   }
 #endif
@@ -2377,21 +2380,21 @@ void stateloop()
         if (otaretry) {
 //          snprintf_P(log, sizeof(log), PSTR("OTA: Attempt %d"), OTA_ATTEMPTS - otaretry);
 //          addLog(LOG_LEVEL_INFO, log);
-          otaok = (HTTP_UPDATE_OK == ESPhttpUpdate.update(sysCfg.otaUrl));
+          otaok = (HTTP_UPDATE_FAILED != ESPhttpUpdate.update(sysCfg.otaUrl));
           if (!otaok) {
             otaflag = 2;
           }
         }
       }
-      if (90 == otaflag) {  // Allow MQTT to reconnect
+      if (90 == otaflag) {     // Allow MQTT to reconnect
         otaflag = 0;
         if (otaok) {
-          setFlashMode(1, 3);  // DOUT for both ESP8266 and ESP8285
+          setFlashModeDout();  // Force DOUT for both ESP8266 and ESP8285
           snprintf_P(svalue, sizeof(svalue), PSTR("Successful. Restarting"));
         } else {
           snprintf_P(svalue, sizeof(svalue), PSTR("Failed %s"), ESPhttpUpdate.getLastErrorString().c_str());
         }
-        restartflag = 2;  // Restart anyway to keep memory clean webserver
+        restartflag = 2;       // Restart anyway to keep memory clean webserver
         mqtt_publish_topic_P(1, PSTR("UPGRADE"), svalue);
       }
     }
