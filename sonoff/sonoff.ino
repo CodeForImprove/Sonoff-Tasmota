@@ -152,6 +152,8 @@ enum emul_t  {EMUL_NONE, EMUL_WEMO, EMUL_HUE, EMUL_MAX};
 #define APP_BAUDRATE           115200       // Default serial baudrate
 #define MAX_STATUS             11           // Max number of status lines
 
+#define FORCE_POWER_ON_SEC     5            // Time in SECONDS to allow force power on in next reboot
+
 enum butt_t  {PRESSED, NOT_PRESSED};
 enum opt_t   {P_HOLD_TIME, P_MAX_POWER_RETRY, P_MAX_PARAM8};   // Index in sysCfg.param
 
@@ -277,6 +279,7 @@ PubSubClient mqttClient(espClient);   // MQTT Client
 WiFiUDP portUDP;                      // UDP Syslog and Alexa
 
 uint8_t power;                        // Current copy of sysCfg.power
+uint8_t last_force_power_on;          // Force Power on flag
 byte syslog_level;                    // Current copy of sysCfg.syslog_level
 uint16_t syslog_timer = 0;            // Timer to re-enable syslog_level
 byte seriallog_level;                 // Current copy of sysCfg.seriallog_level
@@ -592,8 +595,9 @@ void mqtt_connected()
       mqtt_publish_topic_P(2, PSTR("INFO2"), svalue);
     }
 #endif  // USE_WEBSERVER
-    snprintf_P(svalue, sizeof(svalue), PSTR("{\"Started\":\"%s\"}"),
-      (getResetReason() == "Exception") ? ESP.getResetInfo().c_str() : getResetReason().c_str());
+    snprintf_P(svalue, sizeof(svalue), PSTR("{\"Started\":\"%s\", \"ForcePowerOn\":%d}"),
+      (getResetReason() == "Exception") ? ESP.getResetInfo().c_str() : getResetReason().c_str(),
+      last_force_power_on);
     mqtt_publish_topic_P(2, PSTR("INFO3"), svalue);
     if (sysCfg.tele_period) {
       tele_period = sysCfg.tele_period -9;
@@ -1935,6 +1939,11 @@ void every_second()
 {
   char svalue[MESSZ];
 
+  if(sysCfg.force_power_on) {
+    if(millis() > FORCE_POWER_ON_SEC * 1000)
+      sysCfg.force_power_on = 0;    
+  }
+
   if (blockgpio0) {
     blockgpio0--;
   }
@@ -2779,6 +2788,8 @@ void setup()
     Version[idx +1] = 0;
   }
   CFG_Load();
+  last_force_power_on = sysCfg.force_power_on;
+  sysCfg.force_power_on = 1;
   CFG_Delta();
 
   osw_init();
@@ -2823,8 +2834,14 @@ void setup()
   if (MOTOR == sysCfg.module) {
     sysCfg.poweronstate = 1;  // Needs always on else in limbo!
   }
-  if (4 == sysCfg.poweronstate) {  // Allways on
+  
+  if(last_force_power_on) {   // Force all on
+    power = (1 << Maxdevice) -1;
     setRelay(power);
+    sysCfg.power = power;
+  }
+  else if (4 == sysCfg.poweronstate) {  // Allways on
+      setRelay(power);
   } else {
     if ((resetInfo.reason == REASON_DEFAULT_RST) || (resetInfo.reason == REASON_EXT_SYS_RST)) {
       switch (sysCfg.poweronstate) {

@@ -205,6 +205,9 @@ struct SYSCFG {
 
   // 5.4.1
   uint8_t       sfb_code[17][9];
+  
+  // 5.6.1
+  uint8_t       force_power_on;            // Not used since 5.6.1
 
 } sysCfg;
 
@@ -221,4 +224,5 @@ struct RTCMEM {
 #ifdef USE_ADC_VCC
   ADC_MODE(ADC_VCC);                        // Set ADC input for Power Supply Voltage usage
 #endif
+
 
